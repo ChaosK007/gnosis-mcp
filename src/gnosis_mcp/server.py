@@ -360,17 +360,19 @@ async def search_docs(
     limit = max(1, min(cfg.search_limit_max, limit))
     preview = cfg.content_preview_chars
 
-    # Auto-embed query when local provider is available and no embedding provided.
-    # On any failure — ImportError, HuggingFace 401/network error, tokenizer
-    # missing, wrong model name — degrade gracefully to keyword-only search.
-    # Without this, a misconfigured embed_model would make the entire
-    # search_docs tool raise instead of returning useful FTS results.
-    if query_embedding is None and cfg.embed_provider == "local":
+    # Auto-embed query when any provider is configured and no embedding provided.
+    # On any failure — ImportError, network error, wrong model name — degrade
+    # gracefully to keyword-only search.
+    if query_embedding is None and cfg.embed_provider is not None:
         try:
             from gnosis_mcp.embed import embed_texts
 
             vectors = embed_texts(
-                [query], provider="local", model=cfg.embed_model, dim=cfg.embed_dim
+                [query],
+                provider=cfg.embed_provider,
+                model=cfg.embed_model,
+                url=cfg.embed_url,
+                dim=cfg.embed_dim,
             )
             query_embedding = vectors[0] if vectors else None
         except ImportError:
